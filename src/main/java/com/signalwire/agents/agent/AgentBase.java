@@ -1,0 +1,1266 @@
+package com.signalwire.agents.agent;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.signalwire.agents.contexts.ContextBuilder;
+import com.signalwire.agents.logging.Logger;
+import com.signalwire.agents.security.SessionManager;
+import com.signalwire.agents.skills.SkillBase;
+import com.signalwire.agents.skills.SkillManager;
+import com.signalwire.agents.swaig.FunctionResult;
+import com.signalwire.agents.swaig.ToolDefinition;
+import com.signalwire.agents.swaig.ToolHandler;
+import com.signalwire.agents.swml.Document;
+import com.signalwire.agents.swml.Service;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.reflect.Type;
+import java.net.InetSocketAddress;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.regex.Pattern;
+
+/**
+ * Base class for all SignalWire AI agents.
+ * Composes prompt management, tool registration, AI config, HTTP serving,
+ * skills integration, and SWML rendering.
+ *
+ * Use the builder pattern:
+ * <pre>
+ * var agent = AgentBase.builder()
+ *     .name("my-agent")
+ *     .route("/")
+ *     .port(3000)
+ *     .build();
+ * </pre>
+ */
+public class AgentBase {
+
+    private static final Logger log = Logger.getLogger(AgentBase.class);
+    private static final int MAX_REQUEST_BODY_SIZE = 1_048_576; // 1 MB
+    private static final Gson gson = new Gson();
+    private static final Gson gsonPretty = new GsonBuilder().setPrettyPrinting().create();
+    private static final Pattern SIP_USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9._-]{1,64}$");
+
+    // --- Configuration ---
+    private String name;
+    private String route;
+    private String host;
+    private int port;
+    private boolean autoAnswer;
+    private int maxDuration;
+    private boolean recordCall;
+    private String recordFormat;
+    private boolean recordStereo;
+
+    // --- Auth ---
+    private String authUser;
+    private String authPassword;
+
+    // --- Prompt ---
+    private String promptText;
+    private String postPrompt;
+    private String postPromptUrl;
+    private boolean usePom = true;
+    private final List<Map<String, Object>> pomSections = new ArrayList<>();
+
+    // --- AI Config ---
+    private final List<String> hints = new ArrayList<>();
+    private final List<Map<String, Object>> languages = new ArrayList<>();
+    private final List<Map<String, Object>> pronunciations = new ArrayList<>();
+    private final Map<String, Object> params = new LinkedHashMap<>();
+    private final Map<String, Object> promptLlmParams = new LinkedHashMap<>();
+    private final Map<String, Object> postPromptLlmParams = new LinkedHashMap<>();
+    private final Map<String, Object> globalData = new LinkedHashMap<>();
+    private List<String> nativeFunctions;
+    private final List<Map<String, Object>> internalFillers = new ArrayList<>();
+    private boolean debugEventsEnabled = false;
+    private final List<Map<String, Object>> functionIncludes = new ArrayList<>();
+
+    // --- Tools ---
+    private final Map<String, ToolDefinition> tools = new LinkedHashMap<>();
+    private final List<Map<String, Object>> registeredSwaigFunctions = new ArrayList<>();
+
+    // --- Verbs ---
+    private final List<Map<String, Object>> preAnswerVerbs = new ArrayList<>();
+    private final List<Map<String, Object>> answerVerbs = new ArrayList<>();
+    private final List<Map<String, Object>> postAnswerVerbs = new ArrayList<>();
+    private final List<Map<String, Object>> postAiVerbs = new ArrayList<>();
+
+    // --- Contexts ---
+    private ContextBuilder contextBuilder;
+
+    // --- Skills ---
+    private final SkillManager skillManager = new SkillManager(this);
+
+    // --- Web ---
+    private DynamicConfigCallback dynamicConfigCallback;
+    private String webhookUrl;
+    private String proxyUrlBase;
+    private final Map<String, String> swaigQueryParams = new LinkedHashMap<>();
+    private boolean debugRoutesEnabled = false;
+
+    // --- SIP ---
+    private boolean sipRoutingEnabled = false;
+    private final Set<String> sipUsernames = new LinkedHashSet<>();
+
+    // --- Callbacks ---
+    private BiConsumer<Map<String, Object>, Map<String, Object>> onSummaryCallback;
+    private Consumer<Map<String, Object>> onDebugEventCallback;
+
+    // --- Security ---
+    private final SessionManager sessionManager = new SessionManager();
+
+    // --- HTTP Server ---
+    private HttpServer httpServer;
+
+    /**
+     * Private constructor - use builder.
+     */
+    AgentBase() {
+        this.name = "agent";
+        this.route = "/";
+        this.host = "0.0.0.0";
+        this.port = resolvePort();
+        this.autoAnswer = true;
+        this.maxDuration = 3600;
+        this.recordCall = false;
+        this.recordFormat = "mp4";
+        this.recordStereo = true;
+    }
+
+    private static int resolvePort() {
+        String envPort = System.getenv("PORT");
+        if (envPort != null) {
+            try { return Integer.parseInt(envPort); }
+            catch (NumberFormatException ignored) {}
+        }
+        return 3000;
+    }
+
+    // ============================================================
+    // Builder
+    // ============================================================
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private final AgentBase agent = new AgentBase();
+
+        public Builder name(String name) { agent.name = name; return this; }
+        public Builder route(String route) {
+            agent.route = route.endsWith("/") && route.length() > 1
+                    ? route.substring(0, route.length() - 1) : route;
+            return this;
+        }
+        public Builder host(String host) { agent.host = host; return this; }
+        public Builder port(int port) { agent.port = port; return this; }
+        public Builder autoAnswer(boolean autoAnswer) { agent.autoAnswer = autoAnswer; return this; }
+        public Builder maxDuration(int maxDuration) { agent.maxDuration = maxDuration; return this; }
+        public Builder recordCall(boolean recordCall) { agent.recordCall = recordCall; return this; }
+        public Builder recordFormat(String format) { agent.recordFormat = format; return this; }
+        public Builder recordStereo(boolean stereo) { agent.recordStereo = stereo; return this; }
+        public Builder authUser(String user) { agent.authUser = user; return this; }
+        public Builder authPassword(String password) { agent.authPassword = password; return this; }
+
+        public AgentBase build() {
+            // Resolve auth
+            if (agent.authUser == null) {
+                String envUser = System.getenv("SWML_BASIC_AUTH_USER");
+                agent.authUser = (envUser != null && !envUser.isEmpty()) ? envUser : agent.name;
+            }
+            if (agent.authPassword == null) {
+                String envPass = System.getenv("SWML_BASIC_AUTH_PASSWORD");
+                agent.authPassword = (envPass != null && !envPass.isEmpty()) ? envPass : generatePassword();
+            }
+
+            // Resolve proxy URL base
+            String envProxy = System.getenv("SWML_PROXY_URL_BASE");
+            if (envProxy != null && !envProxy.isEmpty()) {
+                agent.proxyUrlBase = envProxy;
+            }
+
+            log.info("Agent '%s' initialized at route '%s', auth user: %s",
+                    agent.name, agent.route, agent.authUser);
+
+            return agent;
+        }
+
+        private static String generatePassword() {
+            var random = new SecureRandom();
+            byte[] bytes = new byte[32];
+            random.nextBytes(bytes);
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        }
+    }
+
+    // ============================================================
+    // Prompt Methods
+    // ============================================================
+
+    public AgentBase setPromptText(String text) {
+        this.promptText = text;
+        this.usePom = false;
+        return this;
+    }
+
+    public AgentBase setPostPrompt(String text) {
+        this.postPrompt = text;
+        return this;
+    }
+
+    public AgentBase promptAddSection(String title, String body, List<String> bullets) {
+        this.usePom = true;
+        Map<String, Object> section = new LinkedHashMap<>();
+        section.put("title", title);
+        section.put("body", body != null ? body : "");
+        if (bullets != null && !bullets.isEmpty()) {
+            section.put("bullets", new ArrayList<>(bullets));
+        }
+        pomSections.add(section);
+        return this;
+    }
+
+    public AgentBase promptAddSection(String title, String body) {
+        return promptAddSection(title, body, null);
+    }
+
+    public AgentBase promptAddSubsection(String parentTitle, String title, String body) {
+        for (Map<String, Object> section : pomSections) {
+            if (parentTitle.equals(section.get("title"))) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> subs = (List<Map<String, Object>>) section
+                        .computeIfAbsent("subsections", k -> new ArrayList<>());
+                Map<String, Object> sub = new LinkedHashMap<>();
+                sub.put("title", title);
+                sub.put("body", body != null ? body : "");
+                subs.add(sub);
+                return this;
+            }
+        }
+        return this;
+    }
+
+    public AgentBase promptAddToSection(String title, List<String> bullets) {
+        for (Map<String, Object> section : pomSections) {
+            if (title.equals(section.get("title"))) {
+                @SuppressWarnings("unchecked")
+                List<String> existing = (List<String>) section.computeIfAbsent("bullets", k -> new ArrayList<>());
+                existing.addAll(bullets);
+                return this;
+            }
+        }
+        return this;
+    }
+
+    public boolean promptHasSection(String title) {
+        for (Map<String, Object> section : pomSections) {
+            if (title.equals(section.get("title"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Object getPrompt() {
+        if (usePom && !pomSections.isEmpty()) {
+            return Map.of("pom", new ArrayList<>(pomSections));
+        } else if (promptText != null) {
+            return Map.of("text", promptText);
+        }
+        return Map.of("text", "");
+    }
+
+    // ============================================================
+    // Tool Methods
+    // ============================================================
+
+    public AgentBase defineTool(String name, String description, Map<String, Object> parameters, ToolHandler handler) {
+        ToolDefinition tool = new ToolDefinition(name, description, parameters, handler);
+        tools.put(name, tool);
+        return this;
+    }
+
+    public AgentBase defineTool(ToolDefinition toolDef) {
+        tools.put(toolDef.getName(), toolDef);
+        return this;
+    }
+
+    public AgentBase registerSwaigFunction(Map<String, Object> swaigFunc) {
+        registeredSwaigFunctions.add(new LinkedHashMap<>(swaigFunc));
+        return this;
+    }
+
+    public AgentBase defineTools(List<ToolDefinition> toolDefs) {
+        for (ToolDefinition td : toolDefs) {
+            tools.put(td.getName(), td);
+        }
+        return this;
+    }
+
+    public FunctionResult onFunctionCall(String name, Map<String, Object> args, Map<String, Object> rawData) {
+        ToolDefinition tool = tools.get(name);
+        if (tool == null || tool.getHandler() == null) {
+            return new FunctionResult("Function not found: " + name);
+        }
+
+        // Validate secure token if needed
+        if (tool.isSecure()) {
+            String token = (String) rawData.get("meta_data_token");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> call = (Map<String, Object>) rawData.get("call");
+            String callId = call != null ? (String) call.get("call_id") : "";
+            if (token == null || !sessionManager.validateToken(token, name, callId != null ? callId : "")) {
+                return new FunctionResult("Unauthorized: invalid token for function " + name);
+            }
+        }
+
+        try {
+            return tool.getHandler().handle(args, rawData);
+        } catch (Exception e) {
+            log.error("Error executing function " + name, e);
+            return new FunctionResult("Error executing function: " + e.getMessage());
+        }
+    }
+
+    public Map<String, ToolDefinition> getTools() {
+        return Collections.unmodifiableMap(tools);
+    }
+
+    public boolean hasTool(String name) {
+        return tools.containsKey(name);
+    }
+
+    // ============================================================
+    // AI Config Methods
+    // ============================================================
+
+    public AgentBase addHint(String hint) {
+        hints.add(hint);
+        return this;
+    }
+
+    public AgentBase addHints(List<String> newHints) {
+        hints.addAll(newHints);
+        return this;
+    }
+
+    public AgentBase addPatternHint(String pattern) {
+        hints.add(pattern);
+        return this;
+    }
+
+    public AgentBase addLanguage(String name, String code, String voice) {
+        return addLanguage(name, code, voice, null, null, null);
+    }
+
+    public AgentBase addLanguage(String name, String code, String voice,
+                                  String speechModel, String fillerWord, String engine) {
+        Map<String, Object> lang = new LinkedHashMap<>();
+        lang.put("name", name);
+        lang.put("code", code);
+        lang.put("voice", voice);
+        if (speechModel != null) lang.put("speech_model", speechModel);
+        if (fillerWord != null) lang.put("filler_word", fillerWord);
+        if (engine != null) lang.put("engine", engine);
+        languages.add(lang);
+        return this;
+    }
+
+    public AgentBase setLanguages(List<Map<String, Object>> langs) {
+        languages.clear();
+        languages.addAll(langs);
+        return this;
+    }
+
+    public AgentBase addPronunciation(String replace, String with, boolean ignoreCase) {
+        Map<String, Object> pron = new LinkedHashMap<>();
+        pron.put("replace", replace);
+        pron.put("with", with);
+        pron.put("ignore_case", ignoreCase);
+        pronunciations.add(pron);
+        return this;
+    }
+
+    public AgentBase setPronunciations(List<Map<String, Object>> prons) {
+        pronunciations.clear();
+        pronunciations.addAll(prons);
+        return this;
+    }
+
+    public AgentBase setParam(String key, Object value) {
+        params.put(key, value);
+        return this;
+    }
+
+    public AgentBase setParams(Map<String, Object> newParams) {
+        params.putAll(newParams);
+        return this;
+    }
+
+    public AgentBase setGlobalData(Map<String, Object> data) {
+        globalData.clear();
+        globalData.putAll(data);
+        return this;
+    }
+
+    public AgentBase updateGlobalData(Map<String, Object> data) {
+        globalData.putAll(data);
+        return this;
+    }
+
+    public Map<String, Object> getGlobalData() {
+        return globalData;
+    }
+
+    public AgentBase setNativeFunctions(List<String> funcs) {
+        this.nativeFunctions = new ArrayList<>(funcs);
+        return this;
+    }
+
+    public AgentBase setInternalFillers(List<Map<String, Object>> fillers) {
+        internalFillers.clear();
+        internalFillers.addAll(fillers);
+        return this;
+    }
+
+    public AgentBase addInternalFiller(String text, String file) {
+        Map<String, Object> filler = new LinkedHashMap<>();
+        if (text != null) filler.put("text", text);
+        if (file != null) filler.put("file", file);
+        internalFillers.add(filler);
+        return this;
+    }
+
+    public AgentBase enableDebugEvents() {
+        this.debugEventsEnabled = true;
+        return this;
+    }
+
+    public AgentBase addFunctionInclude(String url, Map<String, Object> functions) {
+        Map<String, Object> include = new LinkedHashMap<>();
+        include.put("url", url);
+        if (functions != null) include.put("functions", functions);
+        functionIncludes.add(include);
+        return this;
+    }
+
+    public AgentBase setFunctionIncludes(List<Map<String, Object>> includes) {
+        functionIncludes.clear();
+        functionIncludes.addAll(includes);
+        return this;
+    }
+
+    public AgentBase setPromptLlmParams(Map<String, Object> llmParams) {
+        promptLlmParams.clear();
+        promptLlmParams.putAll(llmParams);
+        return this;
+    }
+
+    public AgentBase setPostPromptLlmParams(Map<String, Object> llmParams) {
+        postPromptLlmParams.clear();
+        postPromptLlmParams.putAll(llmParams);
+        return this;
+    }
+
+    // ============================================================
+    // Verb Methods (5-Phase Call Flow)
+    // ============================================================
+
+    public AgentBase addPreAnswerVerb(String verbName, Object verbData) {
+        Map<String, Object> verb = new LinkedHashMap<>();
+        verb.put(verbName, verbData);
+        preAnswerVerbs.add(verb);
+        return this;
+    }
+
+    public AgentBase addAnswerVerb(String verbName, Object verbData) {
+        Map<String, Object> verb = new LinkedHashMap<>();
+        verb.put(verbName, verbData);
+        answerVerbs.add(verb);
+        return this;
+    }
+
+    public AgentBase addPostAnswerVerb(String verbName, Object verbData) {
+        Map<String, Object> verb = new LinkedHashMap<>();
+        verb.put(verbName, verbData);
+        postAnswerVerbs.add(verb);
+        return this;
+    }
+
+    public AgentBase addPostAiVerb(String verbName, Object verbData) {
+        Map<String, Object> verb = new LinkedHashMap<>();
+        verb.put(verbName, verbData);
+        postAiVerbs.add(verb);
+        return this;
+    }
+
+    public AgentBase clearPreAnswerVerbs() { preAnswerVerbs.clear(); return this; }
+    public AgentBase clearPostAnswerVerbs() { postAnswerVerbs.clear(); return this; }
+    public AgentBase clearPostAiVerbs() { postAiVerbs.clear(); return this; }
+
+    // ============================================================
+    // Contexts
+    // ============================================================
+
+    public ContextBuilder defineContexts() {
+        this.contextBuilder = new ContextBuilder();
+        return this.contextBuilder;
+    }
+
+    public ContextBuilder contexts() {
+        return this.contextBuilder;
+    }
+
+    // ============================================================
+    // Skills
+    // ============================================================
+
+    public AgentBase addSkill(String skillName, Map<String, Object> params) {
+        skillManager.addSkill(skillName, params);
+        return this;
+    }
+
+    public AgentBase removeSkill(String skillName) {
+        skillManager.removeSkill(skillName);
+        return this;
+    }
+
+    public List<String> listSkills() {
+        return skillManager.listSkills();
+    }
+
+    public boolean hasSkill(String skillName) {
+        return skillManager.hasSkill(skillName);
+    }
+
+    // ============================================================
+    // Web / HTTP Config
+    // ============================================================
+
+    public AgentBase setDynamicConfigCallback(DynamicConfigCallback callback) {
+        this.dynamicConfigCallback = callback;
+        return this;
+    }
+
+    public AgentBase setWebHookUrl(String url) {
+        this.webhookUrl = url;
+        return this;
+    }
+
+    public AgentBase setPostPromptUrl(String url) {
+        this.postPromptUrl = url;
+        return this;
+    }
+
+    public AgentBase manualSetProxyUrl(String url) {
+        this.proxyUrlBase = url;
+        return this;
+    }
+
+    public AgentBase addSwaigQueryParams(Map<String, String> params) {
+        swaigQueryParams.putAll(params);
+        return this;
+    }
+
+    public AgentBase clearSwaigQueryParams() {
+        swaigQueryParams.clear();
+        return this;
+    }
+
+    public AgentBase enableDebugRoutes() {
+        this.debugRoutesEnabled = true;
+        return this;
+    }
+
+    // ============================================================
+    // SIP
+    // ============================================================
+
+    public AgentBase enableSipRouting() {
+        this.sipRoutingEnabled = true;
+        return this;
+    }
+
+    public AgentBase registerSipUsername(String username) {
+        if (username != null && SIP_USERNAME_PATTERN.matcher(username).matches()) {
+            sipUsernames.add(username);
+        } else {
+            log.warn("Invalid SIP username rejected: %s", username);
+        }
+        return this;
+    }
+
+    public boolean isSipRoutingEnabled() { return sipRoutingEnabled; }
+    public Set<String> getSipUsernames() { return Collections.unmodifiableSet(sipUsernames); }
+
+    // ============================================================
+    // Lifecycle Callbacks
+    // ============================================================
+
+    public AgentBase onSummary(BiConsumer<Map<String, Object>, Map<String, Object>> callback) {
+        this.onSummaryCallback = callback;
+        return this;
+    }
+
+    public AgentBase onDebugEvent(Consumer<Map<String, Object>> callback) {
+        this.onDebugEventCallback = callback;
+        return this;
+    }
+
+    // ============================================================
+    // Getters
+    // ============================================================
+
+    public String getName() { return name; }
+    public String getRoute() { return route; }
+    public String getHost() { return host; }
+    public int getPort() { return port; }
+    public String getAuthUser() { return authUser; }
+    public String getAuthPassword() { return authPassword; }
+    public SkillManager getSkillManager() { return skillManager; }
+
+    // ============================================================
+    // SWML Rendering — 5-Phase Pipeline
+    // ============================================================
+
+    /**
+     * Render the complete SWML document.
+     * 5 phases: pre-answer, answer, post-answer, AI, post-AI
+     */
+    public Map<String, Object> renderSwml(String baseUrl) {
+        List<Map<String, Object>> mainVerbs = new ArrayList<>();
+
+        // Phase 1: Pre-answer verbs
+        mainVerbs.addAll(preAnswerVerbs);
+
+        // Phase 2: Answer
+        if (autoAnswer) {
+            Map<String, Object> answerParams = new LinkedHashMap<>();
+            answerParams.put("max_duration", maxDuration);
+            mainVerbs.add(Map.of("answer", answerParams));
+
+            // Record call if enabled
+            if (recordCall) {
+                Map<String, Object> recParams = new LinkedHashMap<>();
+                recParams.put("format", recordFormat);
+                recParams.put("stereo", recordStereo);
+                mainVerbs.add(Map.of("record_call", recParams));
+            }
+        }
+        mainVerbs.addAll(answerVerbs);
+
+        // Phase 3: Post-answer verbs
+        mainVerbs.addAll(postAnswerVerbs);
+
+        // Phase 4: AI verb
+        Map<String, Object> aiVerb = buildAiVerb(baseUrl);
+        mainVerbs.add(Map.of("ai", aiVerb));
+
+        // Phase 5: Post-AI verbs
+        mainVerbs.addAll(postAiVerbs);
+
+        // Build document
+        Map<String, Object> doc = new LinkedHashMap<>();
+        doc.put("version", "1.0.0");
+        doc.put("sections", Map.of("main", mainVerbs));
+        return doc;
+    }
+
+    private Map<String, Object> buildAiVerb(String baseUrl) {
+        Map<String, Object> ai = new LinkedHashMap<>();
+
+        // Prompt
+        ai.put("prompt", getPrompt());
+
+        // Merge LLM params into prompt
+        if (!promptLlmParams.isEmpty()) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> promptMap = (Map<String, Object>) ai.get("prompt");
+            Map<String, Object> merged = new LinkedHashMap<>(promptMap);
+            for (var entry : promptLlmParams.entrySet()) {
+                merged.put(entry.getKey(), entry.getValue());
+            }
+            ai.put("prompt", merged);
+        }
+
+        // Post prompt
+        if (postPrompt != null) {
+            Map<String, Object> ppMap = new LinkedHashMap<>();
+            ppMap.put("text", postPrompt);
+            ppMap.putAll(postPromptLlmParams);
+            ai.put("post_prompt", ppMap);
+        }
+
+        // Post prompt URL
+        String ppUrl = postPromptUrl;
+        if (ppUrl == null && baseUrl != null) {
+            ppUrl = baseUrl + normalizeRoute() + "/post_prompt";
+        }
+        if (ppUrl != null) {
+            ai.put("post_prompt_url", ppUrl);
+        }
+
+        // Params
+        if (!params.isEmpty()) {
+            ai.put("params", new LinkedHashMap<>(params));
+        }
+
+        // Hints
+        if (!hints.isEmpty()) {
+            ai.put("hints", new ArrayList<>(hints));
+        }
+
+        // Languages
+        if (!languages.isEmpty()) {
+            ai.put("languages", new ArrayList<>(languages));
+        }
+
+        // Pronunciations
+        if (!pronunciations.isEmpty()) {
+            ai.put("pronounce", new ArrayList<>(pronunciations));
+        }
+
+        // Internal fillers
+        if (!internalFillers.isEmpty()) {
+            ai.put("internal_fillers", new ArrayList<>(internalFillers));
+        }
+
+        // Debug events
+        if (debugEventsEnabled) {
+            ai.put("debug", Map.of("events", true));
+        }
+
+        // SWAIG section
+        Map<String, Object> swaig = new LinkedHashMap<>();
+
+        // Build functions list
+        List<Map<String, Object>> functions = buildSwaigFunctions(baseUrl);
+        if (!functions.isEmpty()) {
+            swaig.put("functions", functions);
+        }
+
+        // Function includes
+        if (!functionIncludes.isEmpty()) {
+            swaig.put("includes", new ArrayList<>(functionIncludes));
+        }
+
+        // Native functions
+        if (nativeFunctions != null && !nativeFunctions.isEmpty()) {
+            swaig.put("native_functions", new ArrayList<>(nativeFunctions));
+        }
+
+        if (!swaig.isEmpty()) {
+            ai.put("SWAIG", swaig);
+        }
+
+        // Global data
+        if (!globalData.isEmpty()) {
+            ai.put("global_data", new LinkedHashMap<>(globalData));
+        }
+
+        // Contexts
+        if (contextBuilder != null && !contextBuilder.isEmpty()) {
+            ai.put("contexts", contextBuilder.toMap());
+        }
+
+        return ai;
+    }
+
+    private List<Map<String, Object>> buildSwaigFunctions(String baseUrl) {
+        List<Map<String, Object>> functions = new ArrayList<>();
+        String webhookBase = buildWebhookUrl(baseUrl);
+
+        // Tools with handlers
+        for (Map.Entry<String, ToolDefinition> entry : tools.entrySet()) {
+            ToolDefinition tool = entry.getValue();
+            String toolWebhook = tool.hasHandler() ? webhookBase : null;
+            String token = tool.isSecure() ? sessionManager.createToken(tool.getName(), "") : null;
+            functions.add(tool.toSwaigFunction(toolWebhook, token));
+        }
+
+        // Registered SWAIG functions (DataMap tools)
+        functions.addAll(registeredSwaigFunctions);
+
+        return functions;
+    }
+
+    private String buildWebhookUrl(String baseUrl) {
+        if (webhookUrl != null) return webhookUrl;
+        if (baseUrl == null) return null;
+
+        StringBuilder url = new StringBuilder();
+        url.append(baseUrl);
+        url.append(normalizeRoute());
+        url.append("/swaig");
+
+        if (!swaigQueryParams.isEmpty()) {
+            url.append("?");
+            boolean first = true;
+            for (Map.Entry<String, String> entry : swaigQueryParams.entrySet()) {
+                if (!first) url.append("&");
+                url.append(entry.getKey()).append("=").append(entry.getValue());
+                first = false;
+            }
+        }
+
+        return url.toString();
+    }
+
+    private String normalizeRoute() {
+        return route.equals("/") ? "" : route;
+    }
+
+    /**
+     * Render SWML as a JSON string.
+     */
+    public String renderSwmlJson(String baseUrl) {
+        return gson.toJson(renderSwml(baseUrl));
+    }
+
+    // ============================================================
+    // Dynamic Config Clone
+    // ============================================================
+
+    /**
+     * Create a deep copy of this agent for per-request customization.
+     */
+    public AgentBase clone() {
+        AgentBase copy = new AgentBase();
+        copy.name = this.name;
+        copy.route = this.route;
+        copy.host = this.host;
+        copy.port = this.port;
+        copy.autoAnswer = this.autoAnswer;
+        copy.maxDuration = this.maxDuration;
+        copy.recordCall = this.recordCall;
+        copy.recordFormat = this.recordFormat;
+        copy.recordStereo = this.recordStereo;
+        copy.authUser = this.authUser;
+        copy.authPassword = this.authPassword;
+        copy.promptText = this.promptText;
+        copy.postPrompt = this.postPrompt;
+        copy.postPromptUrl = this.postPromptUrl;
+        copy.usePom = this.usePom;
+        copy.pomSections.addAll(deepCopyList(this.pomSections));
+        copy.hints.addAll(this.hints);
+        copy.languages.addAll(deepCopyList(this.languages));
+        copy.pronunciations.addAll(deepCopyList(this.pronunciations));
+        copy.params.putAll(this.params);
+        copy.promptLlmParams.putAll(this.promptLlmParams);
+        copy.postPromptLlmParams.putAll(this.postPromptLlmParams);
+        copy.globalData.putAll(deepCopyMap(this.globalData));
+        if (this.nativeFunctions != null) {
+            copy.nativeFunctions = new ArrayList<>(this.nativeFunctions);
+        }
+        copy.internalFillers.addAll(deepCopyList(this.internalFillers));
+        copy.debugEventsEnabled = this.debugEventsEnabled;
+        copy.functionIncludes.addAll(deepCopyList(this.functionIncludes));
+        copy.tools.putAll(this.tools);
+        copy.registeredSwaigFunctions.addAll(deepCopyList(this.registeredSwaigFunctions));
+        copy.preAnswerVerbs.addAll(deepCopyList(this.preAnswerVerbs));
+        copy.answerVerbs.addAll(deepCopyList(this.answerVerbs));
+        copy.postAnswerVerbs.addAll(deepCopyList(this.postAnswerVerbs));
+        copy.postAiVerbs.addAll(deepCopyList(this.postAiVerbs));
+        copy.contextBuilder = this.contextBuilder;
+        copy.webhookUrl = this.webhookUrl;
+        copy.proxyUrlBase = this.proxyUrlBase;
+        copy.swaigQueryParams.putAll(this.swaigQueryParams);
+        copy.sipRoutingEnabled = this.sipRoutingEnabled;
+        copy.sipUsernames.addAll(this.sipUsernames);
+        copy.onSummaryCallback = this.onSummaryCallback;
+        copy.onDebugEventCallback = this.onDebugEventCallback;
+        return copy;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> deepCopyList(List<Map<String, Object>> source) {
+        String json = gson.toJson(source);
+        Type type = new TypeToken<List<Map<String, Object>>>() {}.getType();
+        return gson.fromJson(json, type);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> deepCopyMap(Map<String, Object> source) {
+        String json = gson.toJson(source);
+        Type type = new TypeToken<Map<String, Object>>() {}.getType();
+        return gson.fromJson(json, type);
+    }
+
+    // ============================================================
+    // HTTP Server
+    // ============================================================
+
+    /**
+     * Timing-safe basic auth validation.
+     */
+    private boolean validateAuth(HttpExchange exchange) {
+        String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Basic ")) {
+            return false;
+        }
+
+        byte[] decoded;
+        try {
+            decoded = Base64.getDecoder().decode(authHeader.substring(6));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+
+        String credentials = new String(decoded, StandardCharsets.UTF_8);
+        int colonIdx = credentials.indexOf(':');
+        if (colonIdx < 0) return false;
+
+        String user = credentials.substring(0, colonIdx);
+        String pass = credentials.substring(colonIdx + 1);
+
+        boolean userMatch = MessageDigest.isEqual(
+                user.getBytes(StandardCharsets.UTF_8),
+                authUser.getBytes(StandardCharsets.UTF_8));
+        boolean passMatch = MessageDigest.isEqual(
+                pass.getBytes(StandardCharsets.UTF_8),
+                authPassword.getBytes(StandardCharsets.UTF_8));
+
+        return userMatch && passMatch;
+    }
+
+    private void addSecurityHeaders(HttpExchange exchange) {
+        var headers = exchange.getResponseHeaders();
+        headers.set("X-Content-Type-Options", "nosniff");
+        headers.set("X-Frame-Options", "DENY");
+        headers.set("Cache-Control", "no-store");
+    }
+
+    private void sendJson(HttpExchange exchange, int status, Object body) throws IOException {
+        String json = gson.toJson(body);
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(status, bytes.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+        }
+    }
+
+    private void sendUnauthorized(HttpExchange exchange) throws IOException {
+        exchange.getResponseHeaders().set("WWW-Authenticate", "Basic realm=\"SWML Agent\"");
+        exchange.sendResponseHeaders(401, -1);
+        exchange.close();
+    }
+
+    private String readBody(HttpExchange exchange) throws IOException {
+        try (InputStream is = exchange.getRequestBody()) {
+            byte[] buf = new byte[MAX_REQUEST_BODY_SIZE + 1];
+            int total = 0;
+            int n;
+            while ((n = is.read(buf, total, buf.length - total)) > 0) {
+                total += n;
+                if (total > MAX_REQUEST_BODY_SIZE) {
+                    throw new IOException("Request body exceeds maximum size");
+                }
+            }
+            return new String(buf, 0, total, StandardCharsets.UTF_8);
+        }
+    }
+
+    private String detectBaseUrl(HttpExchange exchange) {
+        if (proxyUrlBase != null) return proxyUrlBase;
+
+        var headers = exchange.getRequestHeaders();
+
+        // Check X-Forwarded headers
+        String proto = headers.getFirst("X-Forwarded-Proto");
+        String fwdHost = headers.getFirst("X-Forwarded-Host");
+        if (proto != null && fwdHost != null) {
+            return proto + "://" + fwdHost;
+        }
+
+        // Check X-Original-URL
+        String original = headers.getFirst("X-Original-URL");
+        if (original != null) return original;
+
+        // Fall back to scheme://host:port with auth credentials in URL
+        String scheme = "http";
+        return scheme + "://" + authUser + ":" + authPassword + "@" + host + ":" + port;
+    }
+
+    private Map<String, String> parseQueryParams(String query) {
+        Map<String, String> params = new LinkedHashMap<>();
+        if (query == null || query.isEmpty()) return params;
+        for (String param : query.split("&")) {
+            int eq = param.indexOf('=');
+            if (eq > 0) {
+                String key = URLDecoder.decode(param.substring(0, eq), StandardCharsets.UTF_8);
+                String value = URLDecoder.decode(param.substring(eq + 1), StandardCharsets.UTF_8);
+                params.put(key, value);
+            }
+        }
+        return params;
+    }
+
+    /**
+     * Start the HTTP server and listen for requests.
+     */
+    public void serve() throws IOException {
+        httpServer = HttpServer.create(new InetSocketAddress(host, port), 0);
+        httpServer.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+
+        String basePath = route.equals("/") ? "" : route;
+
+        // Health endpoint (no auth)
+        httpServer.createContext("/health", exchange -> {
+            try {
+                sendJson(exchange, 200, Map.of("status", "healthy"));
+            } catch (Exception e) {
+                log.error("Health handler error", e);
+            }
+        });
+
+        // Ready endpoint (no auth)
+        httpServer.createContext("/ready", exchange -> {
+            try {
+                sendJson(exchange, 200, Map.of("status", "ready"));
+            } catch (Exception e) {
+                log.error("Ready handler error", e);
+            }
+        });
+
+        // SWAIG endpoint
+        httpServer.createContext(basePath + "/swaig", exchange -> {
+            try {
+                handleSwaig(exchange);
+            } catch (Exception e) {
+                log.error("SWAIG handler error", e);
+                try { exchange.sendResponseHeaders(500, -1); exchange.close(); }
+                catch (Exception ignored) {}
+            }
+        });
+
+        // Post-prompt endpoint
+        httpServer.createContext(basePath + "/post_prompt", exchange -> {
+            try {
+                handlePostPrompt(exchange);
+            } catch (Exception e) {
+                log.error("Post-prompt handler error", e);
+                try { exchange.sendResponseHeaders(500, -1); exchange.close(); }
+                catch (Exception ignored) {}
+            }
+        });
+
+        // Main SWML endpoint
+        String mainPath = basePath.isEmpty() ? "/" : basePath;
+        httpServer.createContext(mainPath, exchange -> {
+            try {
+                handleSwml(exchange);
+            } catch (Exception e) {
+                log.error("SWML handler error", e);
+                try { exchange.sendResponseHeaders(500, -1); exchange.close(); }
+                catch (Exception ignored) {}
+            }
+        });
+
+        httpServer.start();
+        log.info("Agent '%s' listening on %s:%d%s", name, host, port, mainPath);
+    }
+
+    private void handleSwml(HttpExchange exchange) throws IOException {
+        String method = exchange.getRequestMethod();
+        String path = exchange.getRequestURI().getPath();
+
+        // Don't handle sub-paths that belong to other handlers
+        String basePath = route.equals("/") ? "" : route;
+        if (path.equals(basePath + "/swaig") || path.equals(basePath + "/post_prompt")) {
+            return;
+        }
+
+        if (!validateAuth(exchange)) {
+            sendUnauthorized(exchange);
+            return;
+        }
+        addSecurityHeaders(exchange);
+
+        String baseUrl = detectBaseUrl(exchange);
+
+        // Dynamic config support
+        AgentBase renderAgent = this;
+        if (dynamicConfigCallback != null) {
+            renderAgent = this.clone();
+            Map<String, String> queryParams = parseQueryParams(exchange.getRequestURI().getQuery());
+            Map<String, Object> bodyParams = new LinkedHashMap<>();
+            if ("POST".equalsIgnoreCase(method)) {
+                try {
+                    String body = readBody(exchange);
+                    if (!body.isEmpty()) {
+                        Type type = new TypeToken<Map<String, Object>>() {}.getType();
+                        bodyParams = gson.fromJson(body, type);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse POST body for dynamic config");
+                }
+            }
+            Map<String, List<String>> headerMap = new LinkedHashMap<>();
+            exchange.getRequestHeaders().forEach((k, v) -> headerMap.put(k, v));
+            dynamicConfigCallback.configure(queryParams, bodyParams, headerMap, renderAgent);
+        }
+
+        sendJson(exchange, 200, renderAgent.renderSwml(baseUrl));
+    }
+
+    private void handleSwaig(HttpExchange exchange) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            exchange.close();
+            return;
+        }
+
+        if (!validateAuth(exchange)) {
+            sendUnauthorized(exchange);
+            return;
+        }
+        addSecurityHeaders(exchange);
+
+        String body;
+        try {
+            body = readBody(exchange);
+        } catch (IOException e) {
+            exchange.sendResponseHeaders(413, -1);
+            exchange.close();
+            return;
+        }
+
+        Map<String, Object> payload;
+        try {
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            payload = gson.fromJson(body, type);
+        } catch (Exception e) {
+            sendJson(exchange, 400, Map.of("error", "Invalid JSON"));
+            return;
+        }
+
+        if (payload == null) {
+            sendJson(exchange, 400, Map.of("error", "Empty payload"));
+            return;
+        }
+
+        String funcName = (String) payload.get("function");
+        if (funcName == null || funcName.isEmpty()) {
+            sendJson(exchange, 400, Map.of("error", "Missing function name"));
+            return;
+        }
+
+        // Validate function exists
+        if (!tools.containsKey(funcName)) {
+            sendJson(exchange, 404, Map.of("error", "Function not found: " + funcName));
+            return;
+        }
+
+        // Extract args from argument.parsed[0]
+        Map<String, Object> args = new LinkedHashMap<>();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> argument = (Map<String, Object>) payload.get("argument");
+        if (argument != null) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> parsed = (List<Map<String, Object>>) argument.get("parsed");
+            if (parsed != null && !parsed.isEmpty()) {
+                args.putAll(parsed.get(0));
+            }
+        }
+
+        FunctionResult result = onFunctionCall(funcName, args, payload);
+        sendJson(exchange, 200, result.toMap());
+    }
+
+    private void handlePostPrompt(HttpExchange exchange) throws IOException {
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            exchange.close();
+            return;
+        }
+
+        if (!validateAuth(exchange)) {
+            sendUnauthorized(exchange);
+            return;
+        }
+        addSecurityHeaders(exchange);
+
+        String body;
+        try {
+            body = readBody(exchange);
+        } catch (IOException e) {
+            exchange.sendResponseHeaders(413, -1);
+            exchange.close();
+            return;
+        }
+
+        Map<String, Object> payload;
+        try {
+            Type type = new TypeToken<Map<String, Object>>() {}.getType();
+            payload = gson.fromJson(body, type);
+        } catch (Exception e) {
+            sendJson(exchange, 400, Map.of("error", "Invalid JSON"));
+            return;
+        }
+
+        if (payload == null) payload = new LinkedHashMap<>();
+
+        if (onSummaryCallback != null) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> ppData = (Map<String, Object>) payload.get("post_prompt_data");
+            Map<String, Object> parsed = null;
+            if (ppData != null) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> p = (Map<String, Object>) ppData.get("parsed");
+                parsed = p;
+            }
+            try {
+                onSummaryCallback.accept(parsed, payload);
+            } catch (Exception e) {
+                log.error("Error in summary callback", e);
+            }
+        }
+
+        sendJson(exchange, 200, Map.of("status", "ok"));
+    }
+
+    /**
+     * Start the agent server. Equivalent to serve().
+     */
+    public void run() throws IOException {
+        serve();
+    }
+
+    /**
+     * Stop the HTTP server.
+     */
+    public void stop() {
+        if (httpServer != null) {
+            httpServer.stop(0);
+            log.info("Agent '%s' stopped", name);
+        }
+    }
+
+    // ============================================================
+    // Dynamic Config Callback Interface
+    // ============================================================
+
+    @FunctionalInterface
+    public interface DynamicConfigCallback {
+        void configure(Map<String, String> queryParams,
+                       Map<String, Object> bodyParams,
+                       Map<String, List<String>> headers,
+                       AgentBase agent);
+    }
+}
