@@ -30,7 +30,7 @@ public class ContextsDemo {
 
         // Step 1: Welcome
         var welcomeStep = defaultCtx.addStep("welcome");
-        welcomeStep.setStepInstructions(
+        welcomeStep.setText(
                 "Greet the user and ask for their name and email.");
         welcomeStep.setStepCriteria(
                 "User has provided their name and email address.");
@@ -39,7 +39,7 @@ public class ContextsDemo {
 
         // Step 2: Preferences
         var prefsStep = defaultCtx.addStep("preferences");
-        prefsStep.setStepInstructions(
+        prefsStep.setText(
                 "Ask about the user's preferences and interests.");
         prefsStep.setStepCriteria(
                 "User has shared at least 2 preferences.");
@@ -48,7 +48,7 @@ public class ContextsDemo {
 
         // Step 3: Confirmation
         var confirmStep = defaultCtx.addStep("confirmation");
-        confirmStep.setStepInstructions(
+        confirmStep.setText(
                 "Summarize the collected information and confirm with the user.");
         confirmStep.setStepCriteria(
                 "User has confirmed their information is correct.");

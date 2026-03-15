@@ -44,15 +44,13 @@ public class RelayDemo {
                     Map.of(
                             "digits", Map.of("max", 1, "digit_timeout", 5.0),
                             "initial_timeout", 10.0
-                    )
+                    ),
+                    null
             );
 
             var result = collectAction.waitForCompletion();
-            @SuppressWarnings("unchecked")
-            var resultMap = (Map<String, Object>) result.getOrDefault("result", Map.of());
-            @SuppressWarnings("unchecked")
-            var resultParams = (Map<String, Object>) resultMap.getOrDefault("params", Map.of());
-            String digits = (String) resultParams.getOrDefault("digits", "");
+            // Extract collected digits from the event params
+            String digits = result != null ? result.getStringParam("digits", "") : "";
 
             if ("1".equals(digits)) {
                 var jokeAction = call.play(List.of(Map.of(

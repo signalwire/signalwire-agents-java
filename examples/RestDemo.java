@@ -18,18 +18,18 @@ public class RestDemo {
         // Build REST client (reads env vars automatically)
         var client = SignalWireClient.builder().build();
 
-        // 1. Create an AI agent via the Fabric API
-        System.out.println("Creating AI agent...");
+        // 1. Create a Fabric resource
+        System.out.println("Creating Fabric resource...");
         try {
-            var agent = client.fabric().aiAgents().create(Map.of(
+            var resource = client.fabric().resources().create(Map.of(
                     "name", "Demo Bot",
-                    "prompt", Map.of("text", "You are a helpful assistant.")
+                    "type", "ai_agent"
             ));
-            System.out.println("  Agent created: " + agent.get("id"));
+            System.out.println("  Resource created: " + resource.get("id"));
 
             // Clean up
-            client.fabric().aiAgents().delete((String) agent.get("id"));
-            System.out.println("  Agent deleted.");
+            client.fabric().resources().delete((String) resource.get("id"));
+            System.out.println("  Resource deleted.");
         } catch (SignalWireRestError e) {
             System.out.println("  Failed (expected in demo): " + e.getMessage());
         }
@@ -39,7 +39,7 @@ public class RestDemo {
         try {
             var numbers = client.phoneNumbers().search(Map.of(
                     "area_code", "512",
-                    "max_results", 3
+                    "max_results", "3"
             ));
             System.out.println("  Available: " + numbers);
         } catch (SignalWireRestError e) {
