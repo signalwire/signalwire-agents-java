@@ -102,7 +102,7 @@ cd /home/devuser/src/signalwire-agents-java
 $GRADLE jar
 
 # Run an example (using the SDK jar + dependencies)
-CP="build/libs/signalwire-agents-1.0.0.jar:$(find build -name '*.jar' | tr '\n' ':')"
+CP="build/libs/signalwire-agents-1.1.0.jar:$(find build -name '*.jar' | tr '\n' ':')"
 $JAVA_HOME/bin/javac -cp "$CP" examples/SimpleAgent.java
 $JAVA_HOME/bin/java -cp "$CP:examples" SimpleAgent
 ```
