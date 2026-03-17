@@ -1018,7 +1018,7 @@ public class AgentBase {
     }
 
     private String detectBaseUrl(HttpExchange exchange) {
-        if (proxyUrlBase != null) return proxyUrlBase;
+        if (proxyUrlBase != null) return embedCredentials(proxyUrlBase);
 
         var headers = exchange.getRequestHeaders();
 
@@ -1026,16 +1026,36 @@ public class AgentBase {
         String proto = headers.getFirst("X-Forwarded-Proto");
         String fwdHost = headers.getFirst("X-Forwarded-Host");
         if (proto != null && fwdHost != null) {
-            return proto + "://" + fwdHost;
+            return embedCredentials(proto + "://" + fwdHost);
         }
 
         // Check X-Original-URL
         String original = headers.getFirst("X-Original-URL");
-        if (original != null) return original;
+        if (original != null) return embedCredentials(original);
 
         // Fall back to scheme://host:port with auth credentials in URL
         String scheme = "http";
         return scheme + "://" + authUser + ":" + authPassword + "@" + host + ":" + port;
+    }
+
+    private String embedCredentials(String url) {
+        try {
+            var uri = new java.net.URI(url);
+            // Already has credentials embedded
+            if (uri.getUserInfo() != null) return url;
+            return new java.net.URI(
+                uri.getScheme(),
+                authUser + ":" + authPassword,
+                uri.getHost(),
+                uri.getPort(),
+                uri.getPath(),
+                uri.getQuery(),
+                uri.getFragment()
+            ).toString();
+        } catch (Exception e) {
+            // If URL parsing fails, prepend credentials manually
+            return url.replaceFirst("://", "://" + authUser + ":" + authPassword + "@");
+        }
     }
 
     private Map<String, String> parseQueryParams(String query) {
