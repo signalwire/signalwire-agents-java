@@ -3,6 +3,7 @@ build/
 !gradle/wrapper/
 *.class
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.war
 *.ear
 *.iml
