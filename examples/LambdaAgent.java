@@ -8,8 +8,8 @@
  * For local testing, this runs as a normal HTTP server.
  */
 
-import com.signalwire.agents.agent.AgentBase;
-import com.signalwire.agents.swaig.FunctionResult;
+import com.signalwire.sdk.agent.AgentBase;
+import com.signalwire.sdk.swaig.FunctionResult;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;

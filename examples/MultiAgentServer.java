@@ -7,9 +7,9 @@
  *   /health    -> Health check
  */
 
-import com.signalwire.agents.agent.AgentBase;
-import com.signalwire.agents.server.AgentServer;
-import com.signalwire.agents.swaig.FunctionResult;
+import com.signalwire.sdk.agent.AgentBase;
+import com.signalwire.sdk.server.AgentServer;
+import com.signalwire.sdk.swaig.FunctionResult;
 
 import java.util.List;
 import java.util.Map;

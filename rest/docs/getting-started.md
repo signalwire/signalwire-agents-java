@@ -25,9 +25,9 @@ You need three things to connect:
 ## Minimal Example
 
 ```python
-from signalwire_agents.rest import SignalWireClient
+from signalwire_agents.rest import RestClient
 
-client = SignalWireClient(
+client = RestClient(
     project="your-project-id",
     token="your-api-token",
     host="example.signalwire.com",
@@ -47,9 +47,9 @@ export SIGNALWIRE_SPACE=example.signalwire.com
 ```
 
 ```python
-from signalwire_agents.rest import SignalWireClient
+from signalwire_agents.rest import RestClient
 
-client = SignalWireClient()
+client = RestClient()
 agents = client.fabric.ai_agents.list()
 ```
 
@@ -83,13 +83,13 @@ addresses = client.fabric.ai_agents.list_addresses("agent-uuid")
 ## Error Handling
 
 ```python
-from signalwire_agents.rest import SignalWireClient, SignalWireRestError
+from signalwire_agents.rest import RestClient, RestError
 
-client = SignalWireClient()
+client = RestClient()
 
 try:
     agent = client.fabric.ai_agents.get("nonexistent-id")
-except SignalWireRestError as e:
+except RestError as e:
     print(f"HTTP {e.status_code}: {e.body}")
     # HTTP 404: {'error': 'not found'}
 ```

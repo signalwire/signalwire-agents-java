@@ -7,8 +7,8 @@
  *   SIGNALWIRE_SPACE        - your SignalWire space
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
-import com.signalwire.agents.rest.SignalWireRestError;
+import com.signalwire.sdk.rest.RestClient;
+import com.signalwire.sdk.rest.RestError;
 
 import java.util.List;
 import java.util.Map;
@@ -16,7 +16,7 @@ import java.util.Map;
 public class RestCallingIvrAndAi {
 
     public static void main(String[] args) {
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         // 1. Dial
         System.out.println("Dialing...");
@@ -29,7 +29,7 @@ public class RestCallingIvrAndAi {
             ));
             callId = (String) result.get("call_id");
             System.out.println("  Call started: " + callId);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Dial failed (expected in demo): " + e.getStatusCode());
             return;
         }
@@ -50,7 +50,7 @@ public class RestCallingIvrAndAi {
                     )
             ));
             System.out.println("  Collect result: " + collectResult);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Collect failed: " + e.getMessage());
         }
 
@@ -64,7 +64,7 @@ public class RestCallingIvrAndAi {
                     "params", Map.of("temperature", 0.3)
             ));
             System.out.println("  AI agent started.");
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  AI failed: " + e.getMessage());
         }
     }

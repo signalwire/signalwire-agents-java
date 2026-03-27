@@ -5,7 +5,7 @@
  * yes_no, and open_ended question types with validation.
  */
 
-import com.signalwire.agents.prefabs.SurveyAgent;
+import com.signalwire.sdk.prefabs.SurveyAgent;
 
 import java.util.List;
 

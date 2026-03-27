@@ -5,7 +5,7 @@
  * Run with: API_NINJAS_KEY=your_key java JokeAgent
  */
 
-import com.signalwire.agents.agent.AgentBase;
+import com.signalwire.sdk.agent.AgentBase;
 
 import java.util.List;
 import java.util.Map;

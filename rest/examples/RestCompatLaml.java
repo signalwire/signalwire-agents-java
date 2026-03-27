@@ -7,15 +7,15 @@
  *   SIGNALWIRE_SPACE        - your SignalWire space
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
-import com.signalwire.agents.rest.SignalWireRestError;
+import com.signalwire.sdk.rest.RestClient;
+import com.signalwire.sdk.rest.RestError;
 
 import java.util.Map;
 
 public class RestCompatLaml {
 
     public static void main(String[] args) {
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         // 1. Create a LAML call
         System.out.println("Creating LAML call...");
@@ -26,7 +26,7 @@ public class RestCompatLaml {
                     "Url", "https://example.com/laml-handler"
             ));
             System.out.println("  Call SID: " + call.get("sid"));
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Call failed (expected in demo): " + e.getStatusCode());
         }
 
@@ -39,7 +39,7 @@ public class RestCompatLaml {
                     "Body", "Hello from SignalWire Java SDK!"
             ));
             System.out.println("  Message SID: " + message.get("sid"));
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  SMS failed: " + e.getStatusCode());
         }
 
@@ -48,7 +48,7 @@ public class RestCompatLaml {
         try {
             var calls = client.compat().calls().list();
             System.out.println("  Calls: " + calls);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
 
@@ -57,7 +57,7 @@ public class RestCompatLaml {
         try {
             var messages = client.compat().messages().list();
             System.out.println("  Messages: " + messages);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
     }

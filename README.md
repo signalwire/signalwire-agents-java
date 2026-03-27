@@ -19,8 +19,8 @@ A Java framework for building, deploying, and managing AI agents as microservice
 ## Quick Start
 
 ```java
-import com.signalwire.agents.agent.AgentBase;
-import com.signalwire.agents.swaig.FunctionResult;
+import com.signalwire.sdk.agent.AgentBase;
+import com.signalwire.sdk.swaig.FunctionResult;
 
 var agent = AgentBase.builder()
     .name("my-agent")

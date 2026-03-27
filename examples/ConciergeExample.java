@@ -5,7 +5,7 @@
  * and availability checking.
  */
 
-import com.signalwire.agents.prefabs.ConciergeAgent;
+import com.signalwire.sdk.prefabs.ConciergeAgent;
 
 import java.util.List;
 

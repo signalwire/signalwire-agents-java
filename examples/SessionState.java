@@ -5,8 +5,8 @@
  * within a single conversation.
  */
 
-import com.signalwire.agents.agent.AgentBase;
-import com.signalwire.agents.swaig.FunctionResult;
+import com.signalwire.sdk.agent.AgentBase;
+import com.signalwire.sdk.swaig.FunctionResult;
 
 import java.util.ArrayList;
 import java.util.List;

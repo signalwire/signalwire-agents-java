@@ -5,7 +5,7 @@
  * for sequential question collection with key/value answers.
  */
 
-import com.signalwire.agents.prefabs.InfoGathererAgent;
+import com.signalwire.sdk.prefabs.InfoGathererAgent;
 
 import java.util.List;
 

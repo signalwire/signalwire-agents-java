@@ -14,7 +14,7 @@
  *   MCP_GATEWAY_AUTH_PASSWORD - Basic auth password
  */
 
-import com.signalwire.agents.agent.AgentBase;
+import com.signalwire.sdk.agent.AgentBase;
 
 import java.util.List;
 import java.util.Map;

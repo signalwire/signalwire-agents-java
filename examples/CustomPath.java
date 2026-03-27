@@ -7,7 +7,7 @@
  * Try: ?user_name=Alice&topic=AI&mood=professional
  */
 
-import com.signalwire.agents.agent.AgentBase;
+import com.signalwire.sdk.agent.AgentBase;
 
 import java.util.List;
 import java.util.Map;

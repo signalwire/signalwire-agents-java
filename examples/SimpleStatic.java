@@ -5,7 +5,7 @@
  * Demonstrates voice, params, hints, global data, and structured prompts.
  */
 
-import com.signalwire.agents.agent.AgentBase;
+import com.signalwire.sdk.agent.AgentBase;
 
 import java.util.List;
 import java.util.Map;

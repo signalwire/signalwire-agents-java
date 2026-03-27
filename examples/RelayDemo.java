@@ -7,7 +7,7 @@
  *   SIGNALWIRE_SPACE
  */
 
-import com.signalwire.agents.relay.RelayClient;
+import com.signalwire.sdk.relay.RelayClient;
 
 import java.util.List;
 import java.util.Map;

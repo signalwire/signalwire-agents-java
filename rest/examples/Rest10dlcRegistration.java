@@ -7,8 +7,8 @@
  *   SIGNALWIRE_SPACE        - your SignalWire space
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
-import com.signalwire.agents.rest.SignalWireRestError;
+import com.signalwire.sdk.rest.RestClient;
+import com.signalwire.sdk.rest.RestError;
 
 import java.util.List;
 import java.util.Map;
@@ -16,7 +16,7 @@ import java.util.Map;
 public class Rest10dlcRegistration {
 
     public static void main(String[] args) {
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         // 1. Create a brand
         System.out.println("Creating 10DLC brand...");
@@ -34,7 +34,7 @@ public class Rest10dlcRegistration {
                     "vertical", "TECHNOLOGY"
             ));
             System.out.println("  Brand: " + brand);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Create failed (expected in demo): " + e.getStatusCode());
         }
 
@@ -43,7 +43,7 @@ public class Rest10dlcRegistration {
         try {
             var campaigns = client.campaign().list();
             System.out.println("  Campaigns: " + campaigns);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
 
@@ -52,7 +52,7 @@ public class Rest10dlcRegistration {
         try {
             var compliance = client.compliance().list();
             System.out.println("  Compliance status: " + compliance);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Check failed: " + e.getStatusCode());
         }
     }

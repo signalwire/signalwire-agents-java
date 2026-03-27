@@ -23,7 +23,7 @@ $GRADLE clean test
 $GRADLE build -x test
 
 # Run a specific test class
-$GRADLE test --tests "com.signalwire.agents.AgentBaseTest"
+$GRADLE test --tests "com.signalwire.sdk.AgentBaseTest"
 
 # Run with verbose output
 $GRADLE test --info
@@ -42,7 +42,7 @@ bin/swaig-test --url http://user:pass@localhost:3000 --exec tool_name --param ke
 # Build the jar
 $GRADLE jar
 
-# The jar is produced at build/libs/signalwire-agents-1.1.0.jar
+# The jar is produced at build/libs/signalwire-sdk-2.0.0.jar
 ```
 
 ## Architecture Overview
@@ -57,7 +57,7 @@ $GRADLE jar
 7. **DataMap** (`datamap/DataMap.java`) -- Server-side API integration without webhooks
 8. **FunctionResult** (`swaig/FunctionResult.java`) -- 40+ action methods for tool responses
 9. **RelayClient** (`relay/RelayClient.java`) -- Real-time call control via WebSocket
-10. **SignalWireClient** (`rest/SignalWireClient.java`) -- REST API client with 21 namespaces
+10. **RestClient** (`rest/RestClient.java`) -- REST API client with 21 namespaces
 
 ### Key Patterns
 
@@ -96,7 +96,7 @@ agent.registerSwaigFunction(dm.toSwaigFunction());
 
 ### Package Layout
 ```
-com.signalwire.agents/
+com.signalwire.sdk/
     agent/        AgentBase (builder, prompts, tools, AI config, HTTP server)
     server/       AgentServer (multi-agent hosting)
     swml/         Document, Schema, Service (SWML rendering)
@@ -108,11 +108,11 @@ com.signalwire.agents/
     security/     SessionManager (HMAC-SHA256 tokens)
     logging/      Logger (level-controlled, env-var driven)
     relay/        RelayClient, Call, Action, Message, RelayEvent, Constants
-    rest/         SignalWireClient, HttpClient, CrudResource, 21 namespaces
+    rest/         RestClient, HttpClient, CrudResource, 21 namespaces
 ```
 
 ### Testing
-- Unit tests in `src/test/java/com/signalwire/agents/`
+- Unit tests in `src/test/java/com/signalwire/sdk/`
 - JUnit 5 with `@Test` annotations
 - All tests run via `gradle test`
 - Test classes: AgentBaseTest, ContextsTest, DataMapTest, FunctionResultTest,

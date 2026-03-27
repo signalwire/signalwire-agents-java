@@ -7,8 +7,8 @@
  *   SIGNALWIRE_SPACE        - your SignalWire space
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
-import com.signalwire.agents.rest.SignalWireRestError;
+import com.signalwire.sdk.rest.RestClient;
+import com.signalwire.sdk.rest.RestError;
 
 import java.util.List;
 import java.util.Map;
@@ -16,7 +16,7 @@ import java.util.Map;
 public class RestFabricSwmlAndCallflows {
 
     public static void main(String[] args) {
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         // 1. Create a SWML script
         System.out.println("Creating SWML script...");
@@ -33,7 +33,7 @@ public class RestFabricSwmlAndCallflows {
                     )
             ));
             System.out.println("  SWML script: " + swml);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Create failed: " + e.getStatusCode());
         }
 
@@ -42,7 +42,7 @@ public class RestFabricSwmlAndCallflows {
         try {
             var scripts = client.fabric().swmlScripts().list();
             System.out.println("  Scripts: " + scripts);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
 
@@ -54,7 +54,7 @@ public class RestFabricSwmlAndCallflows {
                     "description", "Main IVR with AI fallback"
             ));
             System.out.println("  Call flow: " + callFlow);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Create failed: " + e.getStatusCode());
         }
     }

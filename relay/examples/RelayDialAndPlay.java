@@ -8,7 +8,7 @@
  *     RELAY_TO_NUMBER     - destination to call
  */
 
-import com.signalwire.agents.relay.RelayClient;
+import com.signalwire.sdk.relay.RelayClient;
 
 import java.util.List;
 import java.util.Map;

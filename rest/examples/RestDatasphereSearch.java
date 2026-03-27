@@ -7,14 +7,14 @@
  *   SIGNALWIRE_SPACE        - your SignalWire space
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
+import com.signalwire.sdk.rest.RestClient;
 
 import java.util.Map;
 
 public class RestDatasphereSearch {
 
     public static void main(String[] args) {
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         // 1. Create a document
         System.out.println("Creating document...");

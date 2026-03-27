@@ -10,15 +10,15 @@
  *   SIGNALWIRE_LOG_LEVEL=debug
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
-import com.signalwire.agents.rest.SignalWireRestError;
+import com.signalwire.sdk.rest.RestClient;
+import com.signalwire.sdk.rest.RestError;
 
 import java.util.Map;
 
 public class RestManageResources {
 
     public static void main(String[] args) {
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         // 1. Create an AI agent
         System.out.println("Creating AI agent...");
@@ -51,7 +51,7 @@ public class RestManageResources {
                     "url", "https://example.com/call-handler"
             ));
             System.out.println("  Call initiated: " + result);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Call failed (expected in demo): " + e.getStatusCode());
         }
 

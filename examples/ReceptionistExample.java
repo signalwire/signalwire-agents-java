@@ -4,7 +4,7 @@
  * Routes callers to the appropriate department via phone transfer.
  */
 
-import com.signalwire.agents.prefabs.ReceptionistAgent;
+import com.signalwire.sdk.prefabs.ReceptionistAgent;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

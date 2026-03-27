@@ -9,7 +9,7 @@
  * Usage: java DynamicSwmlService [greeting|router]
  */
 
-import com.signalwire.agents.swml.Service;
+import com.signalwire.sdk.swml.Service;
 
 import java.util.Map;
 

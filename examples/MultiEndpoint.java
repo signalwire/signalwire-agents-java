@@ -6,9 +6,9 @@
  * endpoint are served from the same port.
  */
 
-import com.signalwire.agents.agent.AgentBase;
-import com.signalwire.agents.server.AgentServer;
-import com.signalwire.agents.swaig.FunctionResult;
+import com.signalwire.sdk.agent.AgentBase;
+import com.signalwire.sdk.server.AgentServer;
+import com.signalwire.sdk.swaig.FunctionResult;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;

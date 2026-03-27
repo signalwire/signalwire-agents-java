@@ -7,8 +7,8 @@
  *   SIGNALWIRE_SPACE
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
-import com.signalwire.agents.rest.SignalWireRestError;
+import com.signalwire.sdk.rest.RestClient;
+import com.signalwire.sdk.rest.RestError;
 
 import java.util.Map;
 
@@ -16,7 +16,7 @@ public class RestDemo {
 
     public static void main(String[] args) {
         // Build REST client (reads env vars automatically)
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         // 1. Create a Fabric resource
         System.out.println("Creating Fabric resource...");
@@ -30,7 +30,7 @@ public class RestDemo {
             // Clean up
             client.fabric().resources().delete((String) resource.get("id"));
             System.out.println("  Resource deleted.");
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Failed (expected in demo): " + e.getMessage());
         }
 
@@ -42,7 +42,7 @@ public class RestDemo {
                     "max_results", "3"
             ));
             System.out.println("  Available: " + numbers);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Search failed: " + e.getMessage());
         }
 
@@ -54,7 +54,7 @@ public class RestDemo {
                     "content", "SignalWire provides voice, video, and messaging APIs."
             ));
             System.out.println("  Document created: " + doc.get("id"));
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Create failed: " + e.getMessage());
         }
 
@@ -63,7 +63,7 @@ public class RestDemo {
         try {
             var rooms = client.video().rooms().list();
             System.out.println("  Rooms: " + rooms);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getMessage());
         }
 

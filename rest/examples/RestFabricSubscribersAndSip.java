@@ -7,15 +7,15 @@
  *   SIGNALWIRE_SPACE        - your SignalWire space
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
-import com.signalwire.agents.rest.SignalWireRestError;
+import com.signalwire.sdk.rest.RestClient;
+import com.signalwire.sdk.rest.RestError;
 
 import java.util.Map;
 
 public class RestFabricSubscribersAndSip {
 
     public static void main(String[] args) {
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         // 1. Create a subscriber
         System.out.println("Creating subscriber...");
@@ -26,7 +26,7 @@ public class RestFabricSubscribersAndSip {
                     "email", "jane.doe@example.com"
             ));
             System.out.println("  Subscriber: " + subscriber);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Create failed: " + e.getStatusCode());
         }
 
@@ -35,7 +35,7 @@ public class RestFabricSubscribersAndSip {
         try {
             var subscribers = client.fabric().subscribers().list();
             System.out.println("  Subscribers: " + subscribers);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
 
@@ -48,7 +48,7 @@ public class RestFabricSubscribersAndSip {
                     "password", "secure-password-here"
             ));
             System.out.println("  SIP endpoint: " + sipEndpoint);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Create failed: " + e.getStatusCode());
         }
 
@@ -57,7 +57,7 @@ public class RestFabricSubscribersAndSip {
         try {
             var sipEndpoints = client.fabric().sipEndpoints().list();
             System.out.println("  SIP endpoints: " + sipEndpoints);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
     }

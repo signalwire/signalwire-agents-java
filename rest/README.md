@@ -5,9 +5,9 @@ Synchronous REST client for managing SignalWire resources, controlling live call
 ## Quick Start
 
 ```java
-import com.signalwire.agents.rest.SignalWireClient;
+import com.signalwire.sdk.rest.RestClient;
 
-var client = SignalWireClient.builder()
+var client = RestClient.builder()
     .project("your-project-id")
     .token("your-api-token")
     .space("example.signalwire.com")
@@ -32,7 +32,7 @@ client.calling().execute("dial", Map.of(
 
 ## Features
 
-- Single `SignalWireClient` with 21 namespaced sub-objects for every API
+- Single `RestClient` with 21 namespaced sub-objects for every API
 - All calling commands: dial, play, record, collect, detect, tap, stream, AI, transcribe
 - Full Fabric API: resource types with CRUD + addresses, tokens, and generic resources
 - Datasphere: document management and semantic search
@@ -45,7 +45,7 @@ client.calling().execute("dial", Map.of(
 ## Documentation
 
 - [Getting Started](docs/getting-started.md) -- installation, configuration, first API call
-- [Client Reference](docs/client-reference.md) -- SignalWireClient constructor, namespaces, error handling
+- [Client Reference](docs/client-reference.md) -- RestClient constructor, namespaces, error handling
 - [Fabric Resources](docs/fabric.md) -- managing AI agents, SWML scripts, subscribers, call flows
 - [Calling Commands](docs/calling.md) -- REST-based call control (dial, play, record, collect, AI)
 - [Compatibility API](docs/compat.md) -- Twilio-compatible LAML endpoints
@@ -78,11 +78,11 @@ client.calling().execute("dial", Map.of(
 ## Module Structure
 
 ```
-com.signalwire.agents.rest/
-    SignalWireClient.java    -- Namespace wiring, env var resolution
+com.signalwire.sdk.rest/
+    RestClient.java    -- Namespace wiring, env var resolution
     HttpClient.java          -- java.net.http wrapper with Basic Auth
     CrudResource.java        -- Generic CRUD operations
-    SignalWireRestError.java  -- Error class
+    RestError.java  -- Error class
     namespaces/
         FabricNamespace.java        -- AI agents, SWML scripts, subscribers, call flows
         CallingNamespace.java       -- REST-based call control commands

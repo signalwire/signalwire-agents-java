@@ -5,7 +5,7 @@ Real-time call control and messaging over WebSocket using Java's virtual threads
 ## Quick Start
 
 ```java
-import com.signalwire.agents.relay.RelayClient;
+import com.signalwire.sdk.relay.RelayClient;
 
 var client = RelayClient.builder()
     .project("your-project-id")
@@ -66,7 +66,7 @@ client.run();
 ## Module Structure
 
 ```
-com.signalwire.agents.relay/
+com.signalwire.sdk.relay/
     RelayClient.java   -- WebSocket connection, auth, event dispatch
     Call.java           -- Call object with all calling methods and Action classes
     Action.java         -- Action wrapper for controllable operations

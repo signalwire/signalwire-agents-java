@@ -6,7 +6,7 @@
  * are stored in global_data under the configured output key.
  */
 
-import com.signalwire.agents.agent.AgentBase;
+import com.signalwire.sdk.agent.AgentBase;
 
 import java.util.List;
 

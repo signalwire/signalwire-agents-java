@@ -11,7 +11,7 @@
  * Try: ?tier=premium&industry=healthcare&lang=es&test_group=B
  */
 
-import com.signalwire.agents.agent.AgentBase;
+import com.signalwire.sdk.agent.AgentBase;
 
 import java.util.List;
 import java.util.Map;

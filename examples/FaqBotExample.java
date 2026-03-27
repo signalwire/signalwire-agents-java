@@ -4,7 +4,7 @@
  * Creates a domain-specific FAQ agent with keyword-based lookup.
  */
 
-import com.signalwire.agents.prefabs.FAQBotAgent;
+import com.signalwire.sdk.prefabs.FAQBotAgent;
 
 import java.util.List;
 

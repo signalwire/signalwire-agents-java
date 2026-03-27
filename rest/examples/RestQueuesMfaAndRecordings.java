@@ -7,22 +7,22 @@
  *   SIGNALWIRE_SPACE        - your SignalWire space
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
-import com.signalwire.agents.rest.SignalWireRestError;
+import com.signalwire.sdk.rest.RestClient;
+import com.signalwire.sdk.rest.RestError;
 
 import java.util.Map;
 
 public class RestQueuesMfaAndRecordings {
 
     public static void main(String[] args) {
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         // 1. List call queues
         System.out.println("Listing queues...");
         try {
             var queues = client.queue().list();
             System.out.println("  Queues: " + queues);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
 
@@ -34,7 +34,7 @@ public class RestQueuesMfaAndRecordings {
                     "max_size", 50
             ));
             System.out.println("  Queue created: " + queue);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Create failed: " + e.getStatusCode());
         }
 
@@ -43,7 +43,7 @@ public class RestQueuesMfaAndRecordings {
         try {
             var recordings = client.recording().list();
             System.out.println("  Recordings: " + recordings);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
 
@@ -56,7 +56,7 @@ public class RestQueuesMfaAndRecordings {
                     "digits", "1234#"
             ));
             System.out.println("  MFA sent: " + result);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  MFA failed (expected in demo): " + e.getStatusCode());
         }
     }

@@ -7,15 +7,15 @@
  *   SIGNALWIRE_SPACE        - your SignalWire space
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
-import com.signalwire.agents.rest.SignalWireRestError;
+import com.signalwire.sdk.rest.RestClient;
+import com.signalwire.sdk.rest.RestError;
 
 import java.util.Map;
 
 public class RestPhoneNumberManagement {
 
     public static void main(String[] args) {
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         // 1. Search for available numbers
         System.out.println("Searching for available phone numbers in area code 512...");
@@ -25,7 +25,7 @@ public class RestPhoneNumberManagement {
                     "max_results", 5
             ));
             System.out.println("  Available: " + results);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Search failed: " + e.getStatusCode());
         }
 
@@ -34,7 +34,7 @@ public class RestPhoneNumberManagement {
         try {
             var owned = client.phoneNumbers().list();
             System.out.println("  Owned numbers: " + owned);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
 
@@ -59,7 +59,7 @@ public class RestPhoneNumberManagement {
             client.phoneNumbers().release(numberId);
             System.out.println("  Released.");
 
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Operation failed (expected in demo): " + e.getStatusCode());
         }
     }

@@ -1,9 +1,9 @@
-# SignalWireClient Reference
+# RestClient Reference
 
 ## Constructor
 
 ```python
-SignalWireClient(
+RestClient(
     project: str = None,   # SIGNALWIRE_PROJECT_ID
     token: str = None,     # SIGNALWIRE_API_TOKEN
     host: str = None,      # SIGNALWIRE_SPACE
@@ -77,18 +77,18 @@ Every API surface is available as a namespace attribute on the client:
 ## Error Handling
 
 ```python
-from signalwire_agents.rest import SignalWireRestError
+from signalwire_agents.rest import RestError
 
 try:
     client.fabric.ai_agents.get("bad-id")
-except SignalWireRestError as e:
+except RestError as e:
     print(e.status_code)  # 404
     print(e.body)         # {"error": "not found"}
     print(e.url)          # "/api/fabric/resources/ai_agents/bad-id"
     print(e.method)       # "GET"
 ```
 
-`SignalWireRestError` is raised on any non-2xx HTTP response.
+`RestError` is raised on any non-2xx HTTP response.
 
 ### Error Attributes
 

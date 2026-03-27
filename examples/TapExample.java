@@ -7,8 +7,8 @@
  * - Starting and stopping tap sessions by control ID
  */
 
-import com.signalwire.agents.agent.AgentBase;
-import com.signalwire.agents.swaig.FunctionResult;
+import com.signalwire.sdk.agent.AgentBase;
+import com.signalwire.sdk.swaig.FunctionResult;
 
 import java.util.List;
 import java.util.Map;

@@ -7,8 +7,8 @@
  *   SIGNALWIRE_SPACE        - your SignalWire space
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
-import com.signalwire.agents.rest.SignalWireRestError;
+import com.signalwire.sdk.rest.RestClient;
+import com.signalwire.sdk.rest.RestError;
 
 import java.util.List;
 import java.util.Map;
@@ -16,7 +16,7 @@ import java.util.Map;
 public class RestCallingPlayAndRecord {
 
     public static void main(String[] args) {
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         String callId = null;
 
@@ -30,7 +30,7 @@ public class RestCallingPlayAndRecord {
             ));
             callId = (String) result.get("call_id");
             System.out.println("  Call started: " + callId);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Dial failed (expected in demo): " + e.getStatusCode());
             return;
         }
@@ -45,7 +45,7 @@ public class RestCallingPlayAndRecord {
                             "params", Map.of("text", "Please leave a message after the beep.")
                     ))
             ));
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Play failed: " + e.getMessage());
         }
 
@@ -60,7 +60,7 @@ public class RestCallingPlayAndRecord {
                     "end_silence_timeout", 3
             ));
             System.out.println("  Recording: " + recordResult);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Record failed: " + e.getMessage());
         }
 
@@ -69,7 +69,7 @@ public class RestCallingPlayAndRecord {
         try {
             client.calling().execute("hangup", Map.of("call_id", callId));
             System.out.println("  Call ended.");
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Hangup failed: " + e.getMessage());
         }
     }

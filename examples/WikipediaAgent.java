@@ -5,7 +5,7 @@
  * from Wikipedia articles.
  */
 
-import com.signalwire.agents.agent.AgentBase;
+import com.signalwire.sdk.agent.AgentBase;
 
 import java.util.Map;
 

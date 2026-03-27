@@ -5,7 +5,7 @@
  * The SDK includes 18+ built-in skills.
  */
 
-import com.signalwire.agents.agent.AgentBase;
+import com.signalwire.sdk.agent.AgentBase;
 
 import java.util.Map;
 

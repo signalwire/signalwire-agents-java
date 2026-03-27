@@ -7,15 +7,15 @@
  *   SIGNALWIRE_SPACE        - your SignalWire space
  */
 
-import com.signalwire.agents.rest.SignalWireClient;
-import com.signalwire.agents.rest.SignalWireRestError;
+import com.signalwire.sdk.rest.RestClient;
+import com.signalwire.sdk.rest.RestError;
 
 import java.util.Map;
 
 public class RestVideoRooms {
 
     public static void main(String[] args) {
-        var client = SignalWireClient.builder().build();
+        var client = RestClient.builder().build();
 
         // 1. Create a video room
         System.out.println("Creating video room...");
@@ -27,7 +27,7 @@ public class RestVideoRooms {
                     "layout", "grid-responsive"
             ));
             System.out.println("  Room: " + room);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  Create failed: " + e.getStatusCode());
         }
 
@@ -36,7 +36,7 @@ public class RestVideoRooms {
         try {
             var rooms = client.video().rooms().list();
             System.out.println("  Rooms: " + rooms);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
 
@@ -45,7 +45,7 @@ public class RestVideoRooms {
         try {
             var sessions = client.video().sessions().list();
             System.out.println("  Sessions: " + sessions);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
 
@@ -54,7 +54,7 @@ public class RestVideoRooms {
         try {
             var recordings = client.video().recordings().list();
             System.out.println("  Recordings: " + recordings);
-        } catch (SignalWireRestError e) {
+        } catch (RestError e) {
             System.out.println("  List failed: " + e.getStatusCode());
         }
     }

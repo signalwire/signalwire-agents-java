@@ -7,7 +7,7 @@
  * Replace the example credentials with your actual DataSphere details.
  */
 
-import com.signalwire.agents.agent.AgentBase;
+import com.signalwire.sdk.agent.AgentBase;
 
 import java.util.Map;
 

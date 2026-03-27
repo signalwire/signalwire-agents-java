@@ -16,7 +16,7 @@
  *   SIGNALWIRE_LOG_LEVEL=debug
  */
 
-import com.signalwire.agents.relay.RelayClient;
+import com.signalwire.sdk.relay.RelayClient;
 
 import java.util.List;
 import java.util.Map;

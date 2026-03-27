@@ -5,7 +5,7 @@
  * without AI components -- voicemail, IVR menu, call transfer, and recording.
  */
 
-import com.signalwire.agents.swml.Service;
+import com.signalwire.sdk.swml.Service;
 
 import java.util.Map;
 

@@ -10,7 +10,7 @@
  * Get credentials at: https://developers.google.com/custom-search/v1/introduction
  */
 
-import com.signalwire.agents.agent.AgentBase;
+import com.signalwire.sdk.agent.AgentBase;
 
 import java.util.List;
 import java.util.Map;
